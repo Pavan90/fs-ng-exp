@@ -15,21 +15,23 @@ export class PostsService {
     constructor(private http: HttpClient, private router: Router){}
 
 
-    getPosts(){
+    getPosts(postsPerPage:number, currentPage:number){
+      const queryParams = `?pageSize=${postsPerPage}&page=${currentPage}`;
       // this.http.get<{message: string, posts: Post[]}}>('http://localhost:3000/api/posts').subscribe( (postData) => {
       //   console.log(postData);
       //   this.posts = postData.posts;
       // });
         // return [...this.posts]; //create new array with old objects. This will not effect original array
 
-        this.http.get<{message: string; posts: any}>('http://localhost:3000/api/posts')
+        this.http.get<{message: string; posts: any}>('http://localhost:3000/api/posts' + queryParams)
         // need to map the _id from db to id in client
         .pipe( map( (postData) => {
           return postData.posts.map( post => {
             return {
               title: post.title,
               content: post.content,
-              id: post._id
+              id: post._id,
+              imagePath: post.imagePath
             }
           })
         }))
@@ -56,10 +58,23 @@ export class PostsService {
       return this.http.get<{_id: string, title: string, content:string}>('http://localhost:3000/api/posts/' + id);
     }
 
-    addPost(title: string, content: string){
-        const post: Post = {id: null, title: title, content: content};
-        this.http.post< {message: string, postId: string}>('http://localhost:3000/api/posts', post).subscribe( (resData) => {
-          const id = resData.postId;
+    addPost(title: string, content: string, image: File){
+        // const post: Post = {id: null, title: title, content: content};
+
+      const postData = new FormData();
+      postData.append("title", title);
+      postData.append("content", content);
+      postData.append("image", image, title); //title is a file name
+
+      this.http.post< {message: string, post: Post}>('http://localhost:3000/api/posts', postData).subscribe( (resData) => {
+          const post: Post =
+          {
+            id: resData.post.id,
+            title: title,
+            content: content,
+            imagePath: resData.post.imagePath
+          }
+          const id = resData.post.id;
           post.id = id;
             console.log(resData.message);
             this.posts.push(post);
@@ -71,7 +86,7 @@ export class PostsService {
     }
 
     updatePost(id:string, title: string, content: string){
-      const post = { id: id, title: title, content: content};
+      const post = { id: id, title: title, content: content, imagePath: null};
       this.http.put("http://localhost:3000/api/posts/" + id, post).subscribe( (res) => {
         const updatedPosts = [...this.posts];
         const oldPostIndex = updatedPosts.findIndex( p => p.id === post.id);

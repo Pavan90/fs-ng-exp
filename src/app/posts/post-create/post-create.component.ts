@@ -1,9 +1,11 @@
 import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 
 import {Post} from '../posts.model';
-import {NgForm} from '@angular/forms';
+import {NgForm, FormGroup, FormControl, Validators} from '@angular/forms';
 import {PostsService} from '../posts.service';
 import { ActivatedRoute, ParamMap } from '@angular/router';
+
+import {mimeType} from './mime-type.validator';
 
 @Component({
   selector: 'post-create',
@@ -17,10 +19,20 @@ export class PostCreateComponent implements OnInit {
   private postId: string;
   public post: Post;
   isLoading = false;
+  form: FormGroup;
+  imagePreview: string;
 
   constructor(public postService: PostsService, public route: ActivatedRoute) { }
 
   ngOnInit() {
+
+    this.form = new FormGroup({
+      'title': new FormControl(null, {validators: [Validators.required, Validators.minLength(3)]}),
+      'content' : new FormControl(null, {validators: [Validators.required, Validators.minLength(3)]}),
+      'image': new FormControl(null, {validators: [Validators.required],
+        asyncValidators: [mimeType]  })
+
+    });
 
     this.route.paramMap.subscribe( (paramMap: ParamMap) => {
       if(paramMap.has('postId')) {
@@ -32,7 +44,12 @@ export class PostCreateComponent implements OnInit {
         this.postService.getPost(this.postId).subscribe(postData => {
           //stop showing spinner after fethcing posts
           this.isLoading = false;
-          this.post = {id: postData._id, title: postData.title, content: postData.content};
+          this.post = {id: postData._id, title: postData.title, content: postData.content, imagePath: null};
+          this.form.setValue({ //initializing form control values here
+            'title': this.post.title,
+            'content': this.post.content,
+            'image': this.post.imagePath
+          })
         })
       } else {
         this.mode = 'create';
@@ -43,8 +60,24 @@ export class PostCreateComponent implements OnInit {
 
   // @Output() createPost = new EventEmitter<Post>();
 
-  onSavePost(form: NgForm){
-    if(form.invalid) {
+  onImagePick(event: Event){
+    const file = (event.target as HTMLInputElement).files[0];
+    this.form.patchValue({image: file});
+    this.form.get('image').updateValueAndValidity(); //this will validate the input
+    console.log(file);
+    console.log(this.form);
+    const reader = new FileReader(); //file reader for image upload preview
+    reader.onload = () => {
+      this.imagePreview = reader.result as string;
+      console.log(this.imagePreview);
+
+    }
+    reader.readAsDataURL(file); //instructed to load the file
+
+  }
+
+  onSavePost(){
+    if(this.form.invalid) {
       return;
     }
     // this.isLoading = true;
@@ -52,13 +85,14 @@ export class PostCreateComponent implements OnInit {
       // const post = {title: form.value.title, content: form.value.content};
     if(this.mode === 'create'){
 
-      this.postService.addPost(form.value.title, form.value.content);
-      form.reset();
+      this.postService.addPost(this.form.value.title, this.form.value.content, this.form.value.image);
+      // form.reset();
       } else {
-        this.postService.updatePost(this.postId, form.value.title, form.value.content);
+        this.postService.updatePost(this.postId, this.form.value.title, this.form.value.content);
       }
-
+    this.form.reset();
   }
+
 
 }
 

@@ -8,6 +8,9 @@
         {{post.title}}
       </mat-panel-title>
     </mat-expansion-panel-header>
+    <div class="post-image">
+      <img [src]="post.imagePath" [alt]="post.title">
+    </div>
     <mat-panel-description>
       <p>{{post.content}}</p>
 
@@ -19,4 +22,5 @@
       </mat-action-row>
   </mat-expansion-panel>
 </mat-accordion>
+<mat-paginator [length]="totalPosts" [pageSize]="postsPerPage" [pageSizeOptions]="pageSizeOptions" (page)="onChangePage($event)"></mat-paginator>
 <p  class="info-text   mat-body-1"  *ngIf="grabbedPost.length <=0 && !isLoading">No Posts Added</p>
